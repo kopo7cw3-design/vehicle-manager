@@ -28,12 +28,12 @@
   <div class="card">
     <h2>운행 기록</h2>
     <div class="filters">
-      <input id="q" placeholder="검색 (운전자 · 차량번호 · 목적지)">
+      <input id="q" placeholder="검색 (운전자 · 부서 · 차량번호 · 목적지)">
       <select id="fs"><option value="">전체 상태</option><option>운행중</option><option>완료</option></select>
       <select id="fv"><option value="">전체 차량</option></select>
     </div>
     <div class="tablewrap"><table>
-      <thead><tr><th>상태</th><th>차량</th><th>운전자</th><th>목적지</th><th>용무</th><th>출발</th><th>도착</th><th class="r">시작km</th><th class="r">종료km</th><th class="r">거리</th><th>비고</th></tr></thead>
+      <thead><tr><th>상태</th><th>차량</th><th>운전자</th><th>부서</th><th>목적지</th><th>용무</th><th>출발</th><th>도착</th><th class="r">시작km</th><th class="r">종료km</th><th class="r">거리</th><th>비고</th></tr></thead>
       <tbody id="rows"></tbody></table></div>
   </div>
 </div>
@@ -92,12 +92,12 @@ function render() {
 function rows() {
   const q = $('q').value.trim(), s = $('fs').value, v = $('fv').value;
   const list = D.logs.filter(l => (!s || l['상태'] === s) && (!v || l['차량ID'] === v) &&
-    (!q || [l['운전자'], l['차량번호'], l['목적지']].join(' ').includes(q)));
+    (!q || [l['운전자'], l['부서'], l['차량번호'], l['목적지']].join(' ').includes(q)));
   $('rows').innerHTML = list.map(l => `<tr>
-    <td><span class="badge b-${esc(l['상태'])}">${esc(l['상태'])}</span></td><td>${esc(l['차량번호'])}</td><td>${esc(l['운전자'])}</td>
+    <td><span class="badge b-${esc(l['상태'])}">${esc(l['상태'])}</span></td><td>${esc(l['차량번호'])}</td><td>${esc(l['운전자'])}</td><td>${esc(l['부서'])}</td>
     <td>${esc(l['목적지'])}</td><td>${esc(l['용무'])}</td><td>${esc(String(l['출발시각']).slice(5, 16))}</td><td>${esc(String(l['도착시각']).slice(5, 16))}</td>
     <td class="r">${num(l['시작km'])}</td><td class="r">${l['종료km'] === '' ? '-' : num(l['종료km'])}</td><td class="r">${l['주행거리'] === '' ? '-' : num(l['주행거리'])}</td><td>${esc(l['비고'])}</td></tr>`).join('')
-    || '<tr><td colspan="11" class="muted">기록이 없습니다.</td></tr>';
+    || '<tr><td colspan="12" class="muted">기록이 없습니다.</td></tr>';
 }
 ['q', 'fs', 'fv'].forEach(id => $(id).addEventListener('input', () => D && rows()));
 
