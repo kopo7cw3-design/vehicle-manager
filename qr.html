@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>차량 QR 출력</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div class="wrap wide">
+  <div class="top noprint"><h1>🖨️ 차량별 QR코드</h1><button onclick="print()">인쇄</button></div>
+  <div class="card noprint">
+    <label style="margin-top:0">QR이 가리킬 운행 페이지 주소 (GitHub Pages 배포 후 자동으로 맞춰집니다)</label>
+    <input id="base">
+  </div>
+  <div class="qrgrid" id="grid"></div>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const base = document.getElementById('base');
+base.value = new URL('drive.html', location.href).href;
+let vehicles = [];
+function draw() {
+  const g = document.getElementById('grid'); g.innerHTML = '';
+  vehicles.forEach(v => {
+    const c = document.createElement('div'); c.className = 'card qrcard';
+    c.innerHTML = `<h2 style="margin:0">${esc(v.number)}</h2><div class="muted">${esc(v.model)}</div><div class="qr"></div><div class="muted">스캔 후 운행 기록</div>`;
+    g.appendChild(c);
+    new QRCode(c.querySelector('.qr'), { text: base.value + '?v=' + v.id, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+  });
+}
+base.oninput = draw;
+api('vehicles').then(r => { vehicles = r.vehicles; draw(); }).catch(e => toast(e.message, false));
+</script>
+</body>
+</html>
