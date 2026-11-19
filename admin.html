@@ -79,7 +79,6 @@ function render() {
       <span class="badge b-${esc(v['상태'])}">${esc(v['상태'])}</span></div>
       <div class="kv"><span>누적 km</span><span>${v['현재km'] === '' ? '-' : num(v['현재km']) + ' km'}</span>
       ${t ? `<span>운전자</span><b>${esc(t['운전자'])}</b><span>목적지</span><span>${esc(t['목적지'])}</span><span>경과</span><span>${elapsed(t['출발시각'])}</span>` : ''}
-      <span>보험만료</span><span ${soon(v['보험만료']) ? 'style="color:var(--err);font-weight:700"' : ''}>${esc(v['보험만료'])}</span>
       <span>다음점검</span><span ${soon(v['다음점검일']) ? 'style="color:var(--warn);font-weight:700"' : ''}>${esc(v['다음점검일'])}</span></div>
       <div class="actions">
         ${t ? `<button class="danger sm" onclick="force('${v['차량ID']}',${t['시작km']})">강제 종료</button>` : ''}
