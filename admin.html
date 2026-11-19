@@ -26,6 +26,12 @@
   <h2>차량 현황</h2>
   <div class="grid" id="vgrid"></div>
   <div class="card">
+    <h2>📅 예정된 예약</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>차량</th><th>예약자</th><th>부서</th><th>목적지</th><th>시작</th><th>종료</th><th></th></tr></thead>
+      <tbody id="rsv"></tbody></table></div>
+  </div>
+  <div class="card">
     <h2>운행 기록</h2>
     <div class="filters">
       <input id="q" placeholder="검색 (운전자 · 부서 · 차량번호 · 목적지)">
@@ -86,6 +92,8 @@ function render() {
   const fv = $('fv'), cur = fv.value;
   fv.innerHTML = '<option value="">전체 차량</option>' + vs.map(v => `<option value="${v['차량ID']}">${esc(v['차량번호'])}</option>`).join('');
   fv.value = cur;
+  $('rsv').innerHTML = (D.reservations || []).map(r => `<tr><td>${esc(r['차량번호'])}</td><td>${esc(r['예약자'])}</td><td>${esc(r['부서'])}</td><td>${esc(r['목적지'])}</td><td>${esc(String(r['시작시각']).slice(5, 16))}</td><td>${esc(String(r['종료시각']).slice(5, 16))}</td><td><button class="danger sm" onclick="cancelRes('${esc(r['예약ID'])}')">취소</button></td></tr>`).join('')
+    || '<tr><td colspan="7" class="muted">예정된 예약이 없습니다.</td></tr>';
   rows();
 }
 
@@ -108,6 +116,11 @@ async function force(id, startKm) {
 }
 async function setStatus(id, status) {
   try { await api('setStatus', { pw: PW, vehicleId: id, status }, true); toast(status + ' 처리되었습니다'); refresh(); } catch (e) { toast(e.message, false); }
+}
+
+async function cancelRes(id) {
+  if (!confirm('이 예약을 취소할까요?')) return;
+  try { await api('adminCancelRes', { pw: PW, id }, true); toast('예약이 취소되었습니다'); refresh(); } catch (e) { toast(e.message, false); }
 }
 
 refresh(true);
