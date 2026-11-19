@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>차량 관제</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="login"><form class="card" id="lf">
+  <h1>🔒 차량 관제</h1>
+  <label>관리자 비밀번호</label>
+  <input type="password" id="pw" autocomplete="current-password" required>
+  <button class="full">로그인</button>
+</form></div>
+
+<div class="wrap wide">
+  <div class="top">
+    <h1>🚘 차량 관제</h1>
+    <div><span class="muted" id="upd"></span>
+      <button class="ghost sm" onclick="refresh()">새로고침</button>
+      <a href="qr.html"><button class="ghost sm">QR 출력</button></a>
+    </div>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <h2>차량 현황</h2>
+  <div class="grid" id="vgrid"></div>
+  <div class="card">
+    <h2>운행 기록</h2>
+    <div class="filters">
+      <input id="q" placeholder="검색 (운전자 · 차량번호 · 목적지)">
+      <select id="fs"><option value="">전체 상태</option><option>운행중</option><option>완료</option></select>
+      <select id="fv"><option value="">전체 차량</option></select>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>상태</th><th>차량</th><th>운전자</th><th>목적지</th><th>용무</th><th>출발</th><th>도착</th><th class="r">시작km</th><th class="r">종료km</th><th class="r">거리</th><th>비고</th></tr></thead>
+      <tbody id="rows"></tbody></table></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+let PW = sessionStorage.getItem('carlog_pw') || '', D = null;
+const $ = id => document.getElementById(id);
+const login = $('login');
+
+async function refresh(first) {
+  if (!PW) return;
+  try { D = await api('dashboard', { pw: PW }); }
+  catch (e) { if (first || /비밀번호/.test(e.message)) { PW = ''; sessionStorage.removeItem('carlog_pw'); login.style.display = 'flex'; } toast(e.message, false); return; }
+  login.style.display = 'none';
+  render();
+}
+
+$('lf').onsubmit = e => { e.preventDefault(); PW = $('pw').value; sessionStorage.setItem('carlog_pw', PW); refresh(true); };
+
+function render() {
+  const today = D.now.slice(0, 10);
+  const vs = D.vehicles, run = D.logs.filter(l => l['상태'] === '운행중');
+  const todayLogs = D.logs.filter(l => l['출발시각'].startsWith(today));
+  const todayKm = todayLogs.reduce((s, l) => s + (Number(l['주행거리']) || 0), 0);
+  const cnt = s => vs.filter(v => v['상태'] === s).length;
+  $('upd').textContent = '갱신 ' + D.now.slice(11, 16);
+  $('tiles').innerHTML = [['전체 차량', vs.length], ['운행 중', cnt('운행중')], ['가용', cnt('가용')], ['정비', cnt('정비')], ['오늘 운행', todayLogs.length + '건'], ['오늘 주행', num(todayKm) + 'km']]
+    .map(([k, v]) => `<div class="tile"><b>${v}</b><span>${k}</span></div>`).join('');
+
+  $('vgrid').innerHTML = vs.map(v => {
+    const t = run.find(l => l['차량ID'] === v['차량ID']);
+    const cls = v['상태'] === '운행중' ? 'run' : v['상태'] === '정비' ? 'fix' : '';
+    const soon = d => d && (parseTime(d + ' 00:00:00') - new Date()) / 864e5 < 30;
+    return `<div class="vc ${cls}">
+      <div class="vhead"><div><b style="font-size:18px">${esc(v['차량번호'])}</b><div class="muted">${esc(v['차종'])} · ${esc(v['부서'])} · ${esc(v['연료'])}</div></div>
+      <span class="badge b-${esc(v['상태'])}">${esc(v['상태'])}</span></div>
+      <div class="kv"><span>누적 km</span><span>${num(v['현재km'])} km</span>
+      ${t ? `<span>운전자</span><b>${esc(t['운전자'])}</b><span>목적지</span><span>${esc(t['목적지'])}</span><span>경과</span><span>${elapsed(t['출발시각'])}</span>` : ''}
+      <span>보험만료</span><span ${soon(v['보험만료']) ? 'style="color:var(--err);font-weight:700"' : ''}>${esc(v['보험만료'])}</span>
+      <span>다음점검</span><span ${soon(v['다음점검일']) ? 'style="color:var(--warn);font-weight:700"' : ''}>${esc(v['다음점검일'])}</span></div>
+      <div class="actions">
+        ${t ? `<button class="danger sm" onclick="force('${v['차량ID']}',${t['시작km']})">강제 종료</button>` : ''}
+        ${!t && v['상태'] === '가용' ? `<button class="ghost sm" onclick="setStatus('${v['차량ID']}','정비')">정비 전환</button>` : ''}
+        ${v['상태'] === '정비' ? `<button class="ghost sm" onclick="setStatus('${v['차량ID']}','가용')">정비 해제</button>` : ''}
+        <a href="drive.html?v=${v['차량ID']}" target="_blank"><button class="ghost sm">운행 페이지</button></a>
+      </div></div>`;
+  }).join('');
+
+  const fv = $('fv'), cur = fv.value;
+  fv.innerHTML = '<option value="">전체 차량</option>' + vs.map(v => `<option value="${v['차량ID']}">${esc(v['차량번호'])}</option>`).join('');
+  fv.value = cur;
+  rows();
+}
+
+function rows() {
+  const q = $('q').value.trim(), s = $('fs').value, v = $('fv').value;
+  const list = D.logs.filter(l => (!s || l['상태'] === s) && (!v || l['차량ID'] === v) &&
+    (!q || [l['운전자'], l['차량번호'], l['목적지']].join(' ').includes(q)));
+  $('rows').innerHTML = list.map(l => `<tr>
+    <td><span class="badge b-${esc(l['상태'])}">${esc(l['상태'])}</span></td><td>${esc(l['차량번호'])}</td><td>${esc(l['운전자'])}</td>
+    <td>${esc(l['목적지'])}</td><td>${esc(l['용무'])}</td><td>${esc(String(l['출발시각']).slice(5, 16))}</td><td>${esc(String(l['도착시각']).slice(5, 16))}</td>
+    <td class="r">${num(l['시작km'])}</td><td class="r">${l['종료km'] === '' ? '-' : num(l['종료km'])}</td><td class="r">${l['주행거리'] === '' ? '-' : num(l['주행거리'])}</td><td>${esc(l['비고'])}</td></tr>`).join('')
+    || '<tr><td colspan="11" class="muted">기록이 없습니다.</td></tr>';
+}
+['q', 'fs', 'fv'].forEach(id => $(id).addEventListener('input', () => D && rows()));
+
+async function force(id, startKm) {
+  const km = prompt('강제 종료할 종료 km를 입력하세요 (시작 ' + startKm + ')');
+  if (km === null || km === '') return;
+  try { await api('forceEnd', { pw: PW, vehicleId: id, endKm: km }, true); toast('종료 처리되었습니다'); refresh(); } catch (e) { toast(e.message, false); }
+}
+async function setStatus(id, status) {
+  try { await api('setStatus', { pw: PW, vehicleId: id, status }, true); toast(status + ' 처리되었습니다'); refresh(); } catch (e) { toast(e.message, false); }
+}
+
+refresh(true);
+setInterval(() => { if (PW && !document.hidden) refresh(); }, 30000);
+</script>
+</body>
+</html>
