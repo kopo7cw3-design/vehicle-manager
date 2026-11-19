@@ -16,6 +16,7 @@
 const vid = new URLSearchParams(location.search).get('v');
 const app = document.getElementById('app');
 const LAST = 'carlog_driver';
+const LAST_DEPT = 'carlog_dept';
 let data;
 
 function head(v) {
@@ -35,14 +36,17 @@ async function load() {
 
 function renderStart(v) {
   const saved = localStorage.getItem(LAST) || '';
+  const savedDept = localStorage.getItem(LAST_DEPT) || '';
   app.innerHTML = head(v) + `
   <form class="card" id="f">
     <h2>🚗 운행 시작</h2>
     <label>운전자 이름</label>
-    <input name="driver" list="drv" required autocomplete="off" value="${esc(saved)}" placeholder="이름 입력 또는 선택">
+    <input name="driver" list="drv" required pattern=".*\S.*" title="이름을 입력하세요" autocomplete="off" value="${esc(saved)}" placeholder="이름 입력 또는 선택">
     <datalist id="drv">${data.drivers.map(d => `<option value="${esc(d)}">`).join('')}</datalist>
+    <label>부서</label>
+    <input name="dept" required pattern=".*\S.*" title="부서를 입력하세요" autocomplete="off" value="${esc(savedDept)}" placeholder="예) 물류팀">
     <label>목적지</label>
-    <input name="destination" required placeholder="예) 강남 고객사">
+    <input name="destination" required pattern=".*\S.*" title="목적지를 입력하세요" placeholder="예) 강남 고객사">
     <label>용무</label>
     <select name="purpose"><option>업무</option><option>영업</option><option>배송</option><option>출장</option><option>기타</option></select>
     <label>시작 km (계기판)</label>
@@ -55,7 +59,7 @@ function renderStart(v) {
   document.getElementById('f').onsubmit = async ev => {
     ev.preventDefault();
     const f = Object.fromEntries(new FormData(ev.target));
-    await submit('start', { vehicleId: vid, ...f }, () => { localStorage.setItem(LAST, f.driver); done('🚗 운행이 시작되었습니다', '안전운전하세요! 도착 후 같은 QR을 다시 스캔해 종료 km를 입력하세요.'); });
+    await submit('start', { vehicleId: vid, ...f }, () => { localStorage.setItem(LAST, f.driver); localStorage.setItem(LAST_DEPT, f.dept); done('🚗 운행이 시작되었습니다', '안전운전하세요! 도착 후 같은 QR을 다시 스캔해 종료 km를 입력하세요.'); });
   };
 }
 
