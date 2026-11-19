@@ -52,7 +52,7 @@ function renderStart(v) {
     <select name="purpose"><option>업무</option><option>영업</option><option>배송</option><option>출장</option><option>기타</option></select>
     <label>시작 km (계기판)</label>
     <input name="startKm" type="number" inputmode="numeric" min="0" required value="${esc(v['현재km'])}">
-    <div class="hint">마지막 기록: ${num(v['현재km'])} km · 계기판과 다르면 수정하세요.</div>
+    <div class="hint">${v['현재km'] === '' ? '계기판의 현재 km를 입력하세요.' : '마지막 기록: ' + num(v['현재km']) + ' km · 계기판과 다르면 수정하세요.'}</div>
     <label>비고 (선택)</label>
     <input name="note" placeholder="동승자, 특이사항 등">
     <button class="full" id="btn">운행 시작</button>
