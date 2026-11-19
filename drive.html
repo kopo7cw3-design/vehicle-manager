@@ -32,6 +32,7 @@ async function load() {
   if (t) renderEnd(v, t);
   else if (v['상태'] === '정비') app.innerHTML = head(v) + '<div class="card">정비 중인 차량입니다. 운행할 수 없습니다.</div>';
   else renderStart(v);
+  renderReserve(v);
 }
 
 function renderStart(v) {
@@ -95,6 +96,59 @@ async function submit(action, body, ok) {
 function done(title, msg) {
   app.innerHTML = `${head(data.vehicle).replace(/<span class="badge.*?<\/span>/, '')}<div class="card" style="text-align:center"><h1>${title}</h1><p class="muted">${msg}</p><button class="ghost" onclick="load()">현재 상태 보기</button></div>`;
 }
+function fmt(x) { return String(x).slice(5, 16); }
+function kst(ms) { return new Date(ms).toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }); }
+
+function renderReserve(v) {
+  const list = data.reservations || [];
+  // 운행 시작 전, 지금 ~ 2시간 안에 다른 예약이 있으면 경고만 표시 (운행은 막지 않음)
+  if (!data.openTrip) {
+    const now = kst(Date.now()), soon = kst(Date.now() + 2 * 3600 * 1000);
+    const near = list.filter(r => String(r['시작시각']) <= soon && String(r['종료시각']) > now);
+    if (near.length) {
+      const first = app.querySelector('.card');
+      first.insertAdjacentHTML('afterend', `<div class="card" style="border-color:var(--warn)"><b style="color:var(--warn)">⚠️ 예약된 차량입니다</b>${near.map(r => `<div class="muted">${esc(fmt(r['시작시각']))} ~ ${esc(fmt(r['종료시각']))} · ${esc(r['예약자'])} (${esc(r['부서'])}) · ${esc(r['목적지'])}</div>`).join('')}<div class="hint">운행은 가능하지만 예약자와 먼저 확인하세요.</div></div>`);
+    }
+  }
+  const rows = list.map(r => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(fmt(r['시작시각']))} ~ ${esc(fmt(r['종료시각']))}</b><br><span class="muted">${esc(r['예약자'])} (${esc(r['부서'])}) · ${esc(r['목적지'])}</span></span><button type="button" class="ghost sm" onclick="cancelRes('${esc(r['예약ID'])}')">취소</button></div>`).join('') || '<div class="muted">예정된 예약이 없습니다.</div>';
+  app.insertAdjacentHTML('beforeend', `
+  <div class="card"><h2>📅 예약 현황</h2>${rows}</div>
+  <details class="card" id="rsv"><summary style="font-weight:700;cursor:pointer">📅 이 차량 예약하기</summary>
+    <form id="rf">
+      <label>예약자 이름</label>
+      <input name="name" required pattern=".*[^ ].*" title="이름을 입력하세요" autocomplete="off" value="${esc(localStorage.getItem(LAST) || '')}">
+      <label>부서</label>
+      <input name="dept" required pattern=".*[^ ].*" title="부서를 입력하세요" autocomplete="off" value="${esc(localStorage.getItem(LAST_DEPT) || '')}" placeholder="예) 물류팀">
+      <label>목적지</label>
+      <input name="destination" required pattern=".*[^ ].*" title="목적지를 입력하세요" placeholder="예) 강남 고객사">
+      <label>사용 시작</label>
+      <input type="datetime-local" name="start" required>
+      <label>사용 종료</label>
+      <input type="datetime-local" name="end" required>
+      <label>취소번호 (숫자 4자리)</label>
+      <input name="pin" required inputmode="numeric" pattern="[0-9]{4}" maxlength="4" title="숫자 4자리를 입력하세요" placeholder="예약 취소할 때 필요합니다">
+      <button class="full" id="rbtn">예약하기</button>
+    </form>
+  </details>`);
+  document.getElementById('rf').onsubmit = async ev => {
+    ev.preventDefault();
+    const f = Object.fromEntries(new FormData(ev.target));
+    const b = document.getElementById('rbtn'); b.disabled = true; b.textContent = '저장 중…';
+    try {
+      await api('reserve', { vehicleId: vid, ...f }, true);
+      localStorage.setItem(LAST, f.name); localStorage.setItem(LAST_DEPT, f.dept);
+      toast('예약되었습니다'); await load();
+    } catch (e) { toast(e.message, false); b.disabled = false; b.textContent = '예약하기'; }
+  };
+}
+
+async function cancelRes(id) {
+  const pin = prompt('예약할 때 정한 취소번호(숫자 4자리)를 입력하세요');
+  if (pin === null || pin.trim() === '') return;
+  try { await api('cancelRes', { id, pin }, true); toast('예약이 취소되었습니다'); await load(); }
+  catch (e) { toast(e.message, false); }
+}
+
 load();
 </script>
 </body>
