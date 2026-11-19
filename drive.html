@@ -41,12 +41,12 @@ function renderStart(v) {
   <form class="card" id="f">
     <h2>🚗 운행 시작</h2>
     <label>운전자 이름</label>
-    <input name="driver" list="drv" required pattern=".*\S.*" title="이름을 입력하세요" autocomplete="off" value="${esc(saved)}" placeholder="이름 입력 또는 선택">
+    <input name="driver" list="drv" required pattern=".*[^ ].*" title="이름을 입력하세요" autocomplete="off" value="${esc(saved)}" placeholder="이름 입력 또는 선택">
     <datalist id="drv">${data.drivers.map(d => `<option value="${esc(d)}">`).join('')}</datalist>
     <label>부서</label>
-    <input name="dept" required pattern=".*\S.*" title="부서를 입력하세요" autocomplete="off" value="${esc(savedDept)}" placeholder="예) 물류팀">
+    <input name="dept" required pattern=".*[^ ].*" title="부서를 입력하세요" autocomplete="off" value="${esc(savedDept)}" placeholder="예) 물류팀">
     <label>목적지</label>
-    <input name="destination" required pattern=".*\S.*" title="목적지를 입력하세요" placeholder="예) 강남 고객사">
+    <input name="destination" required pattern=".*[^ ].*" title="목적지를 입력하세요" placeholder="예) 강남 고객사">
     <label>용무</label>
     <select name="purpose"><option>업무</option><option>영업</option><option>배송</option><option>출장</option><option>기타</option></select>
     <label>시작 km (계기판)</label>
