@@ -77,7 +77,7 @@ function render() {
     return `<div class="vc ${cls}">
       <div class="vhead"><div><b style="font-size:18px">${esc(v['차량번호'])}</b><div class="muted">${esc(v['차종'])} · ${esc(v['부서'])} · ${esc(v['연료'])}</div></div>
       <span class="badge b-${esc(v['상태'])}">${esc(v['상태'])}</span></div>
-      <div class="kv"><span>누적 km</span><span>${num(v['현재km'])} km</span>
+      <div class="kv"><span>누적 km</span><span>${v['현재km'] === '' ? '-' : num(v['현재km']) + ' km'}</span>
       ${t ? `<span>운전자</span><b>${esc(t['운전자'])}</b><span>목적지</span><span>${esc(t['목적지'])}</span><span>경과</span><span>${elapsed(t['출발시각'])}</span>` : ''}
       <span>보험만료</span><span ${soon(v['보험만료']) ? 'style="color:var(--err);font-weight:700"' : ''}>${esc(v['보험만료'])}</span>
       <span>다음점검</span><span ${soon(v['다음점검일']) ? 'style="color:var(--warn);font-weight:700"' : ''}>${esc(v['다음점검일'])}</span></div>
