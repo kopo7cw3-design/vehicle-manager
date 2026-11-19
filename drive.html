@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>차량이용</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div id="app"><div class="card muted">불러오는 중…</div></div>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const vid = new URLSearchParams(location.search).get('v');
+const app = document.getElementById('app');
+const LAST = 'carlog_driver';
+let data;
+
+function head(v) {
+  return `<div class="card">
+    <div class="vhead"><div><div class="muted">${esc(v['차종'])} · ${esc(v['부서'])}</div><div class="vnum">${esc(v['차량번호'])}</div></div>
+    <span class="badge b-${esc(v['상태'])}">${esc(v['상태'])}</span></div></div>`;
+}
+
+async function load() {
+  if (!vid) { app.innerHTML = '<div class="card">차량 정보가 없습니다. 차량의 QR코드를 다시 스캔하세요.</div>'; return; }
+  try { data = await api('vehicle', { id: vid }); } catch (e) { app.innerHTML = `<div class="card" style="color:var(--err)">${esc(e.message)}</div>`; return; }
+  const v = data.vehicle, t = data.openTrip;
+  if (t) renderEnd(v, t);
+  else if (v['상태'] === '정비') app.innerHTML = head(v) + '<div class="card">정비 중인 차량입니다. 운행할 수 없습니다.</div>';
+  else renderStart(v);
+}
+
+function renderStart(v) {
+  const saved = localStorage.getItem(LAST) || '';
+  app.innerHTML = head(v) + `
+  <form class="card" id="f">
+    <h2>🚗 운행 시작</h2>
+    <label>운전자 이름</label>
+    <input name="driver" list="drv" required autocomplete="off" value="${esc(saved)}" placeholder="이름 입력 또는 선택">
+    <datalist id="drv">${data.drivers.map(d => `<option value="${esc(d)}">`).join('')}</datalist>
+    <label>목적지</label>
+    <input name="destination" required placeholder="예) 강남 고객사">
+    <label>용무</label>
+    <select name="purpose"><option>업무</option><option>영업</option><option>배송</option><option>출장</option><option>기타</option></select>
+    <label>시작 km (계기판)</label>
+    <input name="startKm" type="number" inputmode="numeric" min="0" required value="${esc(v['현재km'])}">
+    <div class="hint">마지막 기록: ${num(v['현재km'])} km · 계기판과 다르면 수정하세요.</div>
+    <label>비고 (선택)</label>
+    <input name="note" placeholder="동승자, 특이사항 등">
+    <button class="full" id="btn">운행 시작</button>
+  </form>`;
+  document.getElementById('f').onsubmit = async ev => {
+    ev.preventDefault();
+    const f = Object.fromEntries(new FormData(ev.target));
+    await submit('start', { vehicleId: vid, ...f }, () => { localStorage.setItem(LAST, f.driver); done('🚗 운행이 시작되었습니다', '안전운전하세요! 도착 후 같은 QR을 다시 스캔해 종료 km를 입력하세요.'); });
+  };
+}
+
+function renderEnd(v, t) {
+  app.innerHTML = head(v) + `
+  <div class="card"><h2>운행 중</h2>
+    <div class="kv"><span>운전자</span><b>${esc(t['운전자'])}</b><span>목적지</span><span>${esc(t['목적지'])} (${esc(t['용무'])})</span>
+    <span>출발</span><span>${esc(t['출발시각'])} (${elapsed(t['출발시각'])} 경과)</span><span>시작 km</span><span>${num(t['시작km'])} km</span></div></div>
+  <form class="card" id="f">
+    <h2>🏁 운행 종료</h2>
+    <label>종료 km (계기판)</label>
+    <input name="endKm" id="endKm" type="number" inputmode="numeric" min="${esc(t['시작km'])}" required placeholder="${esc(t['시작km'])} 이상" autofocus>
+    <div class="hint">주행거리: <span class="big" id="dist">-</span></div>
+    <label>비고 (선택)</label>
+    <input name="note" placeholder="특이사항">
+    <button class="full" id="btn">운행 종료</button>
+  </form>`;
+  const km = document.getElementById('endKm');
+  km.oninput = () => { const d = Number(km.value) - Number(t['시작km']); document.getElementById('dist').textContent = km.value && d >= 0 ? num(d) + ' km' : '-'; };
+  document.getElementById('f').onsubmit = async ev => {
+    ev.preventDefault();
+    const f = Object.fromEntries(new FormData(ev.target));
+    await submit('end', { vehicleId: vid, ...f }, r => done('🏁 운행이 종료되었습니다', `이번 주행거리 ${num(r.distance)} km. 수고하셨습니다!`));
+  };
+}
+
+async function submit(action, body, ok) {
+  const b = document.getElementById('btn'); b.disabled = true; b.textContent = '저장 중…';
+  try { const r = await api(action, body, true); ok(r); }
+  catch (e) { toast(e.message, false); b.disabled = false; b.textContent = action === 'start' ? '운행 시작' : '운행 종료'; }
+}
+
+function done(title, msg) {
+  app.innerHTML = `${head(data.vehicle).replace(/<span class="badge.*?<\/span>/, '')}<div class="card" style="text-align:center"><h1>${title}</h1><p class="muted">${msg}</p><button class="ghost" onclick="load()">현재 상태 보기</button></div>`;
+}
+load();
+</script>
+</body>
+</html>
